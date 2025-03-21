@@ -1,15 +1,17 @@
-import React from 'react';
-import Link from 'next/link';
-import { BlogEntry, BlogEntryMetaItem } from '../../../../bcms/types/ts';
-import { EntryContentParsedItem } from '@thebcms/types';
-import { bcms } from '@/app/bcms-client';
-import { notFound } from 'next/navigation';
-import Tag from '@/components/Tag';
-import { toReadableDate } from '@/utils/date';
-import { BCMSImage } from '@thebcms/components-react';
-import ContentManager from '@/components/ContentManager';
-import { Metadata } from 'next';
-import BlogCard from '@/components/blog/Card';
+// app/blog/[slug]/page.tsx
+import React from "react";
+import Link from "next/link";
+import { BlogEntry, BlogEntryMetaItem } from "../../../../bcms/types/ts";
+import { EntryContentParsedItem } from "@thebcms/types";
+import { bcms } from "@/app/bcms-client";
+import { notFound } from "next/navigation";
+import { toReadableDate } from "@/utils/date";
+import { BCMSImage } from "@thebcms/components-react";
+import ContentManager from "@/components/ContentManager";
+import BlogCard from "@/components/blog/Card";
+import type { Comment } from "@/types";
+import { Metadata } from "next";
+import CommentForm from "@/components/CommentForm";
 
 type Props = {
     params: {
@@ -18,7 +20,7 @@ type Props = {
 };
 
 export async function generateStaticParams() {
-    const blogs = (await bcms.entry.getAll('blog')) as BlogEntry[];
+    const blogs = (await bcms.entry.getAll("blog")) as BlogEntry[];
 
     return blogs.map((blog) => {
         const meta = blog.meta.en as BlogEntryMetaItem;
@@ -29,7 +31,7 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const blog = (await bcms.entry.getBySlug(params.slug, 'blog')) as BlogEntry;
+    const blog = (await bcms.entry.getBySlug(params.slug, "blog")) as BlogEntry;
 
     if (!blog) {
         return notFound();
@@ -49,19 +51,50 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
 }
 
-const BlogPage: React.FC<Props> = async ({ params }) => {
-    const blogs = (await bcms.entry.getAll('blog')) as BlogEntry[];
+const BlogPage = async ({ params }: Props) => {
+    // Fetch all blogs
+    const blogs = (await bcms.entry.getAll("blog")) as BlogEntry[];
 
+    // Find the current blog
     const blog = blogs.find((e) => e.meta.en?.slug === params.slug);
 
     if (!blog) {
         return notFound();
     }
+
+    // Prepare blog data
     const data = {
         meta: blog.meta.en as BlogEntryMetaItem,
         content: blog.content.en as EntryContentParsedItem[],
     };
 
+    // Fetch comments
+    let comments: Comment[] = [];
+    try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/comment/get-all`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to fetch comments");
+        }
+
+        const result = await response.json();
+        comments = result.data; // Assuming the response has a `data` field
+    } catch (error) {
+        console.error("Error fetching comments:", error);
+    }
+
+    // Filter comments for the current blog
+    const filteredComments = comments.filter((comment: Comment) => {
+        const blogSlug = comment?.blog?.meta?.en?.slug;
+        return blogSlug === params.slug;
+    });
+
+    // Filter other blogs
     const otherBlogs = blogs.filter((e) => e.meta.en?.slug !== params.slug);
 
     return (
@@ -80,13 +113,6 @@ const BlogPage: React.FC<Props> = async ({ params }) => {
                                 {data.meta.title}
                             </h1>
                             <div className="flex items-center flex-wrap gap-2">
-                                {data.meta.category.map((category, index) => {
-                                    return (
-                                        <Tag key={index} className="capitalize">
-                                            {category.toLowerCase()}
-                                        </Tag>
-                                    );
-                                })}
                                 <svg
                                     width="5"
                                     height="5"
@@ -94,12 +120,7 @@ const BlogPage: React.FC<Props> = async ({ params }) => {
                                     fill="none"
                                     xmlns="http://www.w3.org/2000/svg"
                                 >
-                                    <circle
-                                        cx="2.5"
-                                        cy="2.5"
-                                        r="2.5"
-                                        fill="#D9D9D9"
-                                    />
+                                    <circle cx="2.5" cy="2.5" r="2.5" fill="#D9D9D9" />
                                 </svg>
                                 <div className="leading-none">
                                     {toReadableDate(data.meta.date)}
@@ -117,20 +138,50 @@ const BlogPage: React.FC<Props> = async ({ params }) => {
                         className="prose max-w-full lg:prose-lg"
                     />
                 </div>
+
+                {/* Display Comments */}
+                <div className="mt-20">
+                    <h3 className="text-xl font-semibold leading-none tracking-[-0.24px] mb-8 md:mb-12 md:text-2xl">
+                        Comments
+                    </h3>
+                    <div className="grid grid-cols-1 gap-6">
+                        {filteredComments.map((comment) => (
+                            <div
+                                key={comment.slug}
+                                className="p-6 border border-appGray-200 rounded-lg"
+                            >
+                                <h4 className="text-lg font-semibold">
+                                    {comment.title}
+                                </h4>
+                                <p className="text-sm text-appGray-500">
+                                    From: {comment.from}
+                                </p>
+                                <p className="mt-2">{comment.comment_text}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                
+                {/* Comment Form */}
+                <CommentForm
+                    blogEntryId={blog._id}
+                    blogTemplateId={blog.templateId}
+                />
+
+                {/* Display Other Blogs */}
                 {otherBlogs.length > 0 && (
                     <div className="max-w-[1040px] mt-20">
                         <h3 className="text-xl font-semibold leading-none tracking-[-0.24px] mb-8 md:mb-12 md:text-2xl">
                             See my other blogs
                         </h3>
                         <div className="grid grid-cols-1 gap-12">
-                            {otherBlogs.slice(0, 2).map((blog, index) => {
-                                return (
-                                    <BlogCard
-                                        key={index}
-                                        blog={blog.meta.en as BlogEntryMetaItem}
-                                    />
-                                );
-                            })}
+                            {otherBlogs.slice(0, 2).map((blog, index) => (
+                                <BlogCard
+                                    key={index}
+                                    blog={blog.meta.en as BlogEntryMetaItem}
+                                />
+                            ))}
                         </div>
                     </div>
                 )}

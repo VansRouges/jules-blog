@@ -5,13 +5,13 @@ import { BCMSImage } from '@thebcms/components-react';
 import { bcms } from '@/app/bcms-client';
 import ContentManager from '../ContentManager';
 import { toReadableDate } from '@/utils/date';
-import Tag from '../Tag';
 
 interface Props {
     blog: BlogEntryMetaItem;
 }
 
 const BlogCard: React.FC<Props> = ({ blog }) => {
+    console.log("blogs", blog)
     return (
         <article>
             <Link
@@ -30,13 +30,7 @@ const BlogCard: React.FC<Props> = ({ blog }) => {
                         {blog.title}
                     </h3>
                     <div className="flex items-center flex-wrap gap-2 mb-8">
-                        {blog.category.map((category, index) => {
-                            return (
-                                <Tag key={index} className="capitalize">
-                                    {category.toLowerCase()}
-                                </Tag>
-                            );
-                        })}
+                        
                         <svg
                             width="5"
                             height="5"
