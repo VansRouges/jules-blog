@@ -60,6 +60,7 @@ const CommentForm = ({ blogEntryId, blogTemplateId }: CommentFormProps) => {
             setTitle("");
             setFrom("");
             setCommentText("");
+            location.reload();
         } catch (error) {
             console.error("Error submitting comment:", error);
         }

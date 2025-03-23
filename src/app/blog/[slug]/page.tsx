@@ -9,9 +9,10 @@ import { toReadableDate } from "@/utils/date";
 import { BCMSImage } from "@thebcms/components-react";
 import ContentManager from "@/components/ContentManager";
 import BlogCard from "@/components/blog/Card";
-import type { Comment } from "@/types";
+// import type { Comment } from "@/types";
 import { Metadata } from "next";
 import CommentForm from "@/components/CommentForm";
+import CommentsList from "@/components/CommentsList"; // Import the new CommentsList component
 
 type Props = {
     params: {
@@ -68,32 +69,6 @@ const BlogPage = async ({ params }: Props) => {
         content: blog.content.en as EntryContentParsedItem[],
     };
 
-    // Fetch comments
-    let comments: Comment[] = [];
-    try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/comment/get-all`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error("Failed to fetch comments");
-        }
-
-        const result = await response.json();
-        comments = result.data; // Assuming the response has a `data` field
-    } catch (error) {
-        console.error("Error fetching comments:", error);
-    }
-
-    // Filter comments for the current blog
-    const filteredComments = comments.filter((comment: Comment) => {
-        const blogSlug = comment?.blog?.meta?.en?.slug;
-        return blogSlug === params.slug;
-    });
-
     // Filter other blogs
     const otherBlogs = blogs.filter((e) => e.meta.en?.slug !== params.slug);
 
@@ -140,29 +115,8 @@ const BlogPage = async ({ params }: Props) => {
                 </div>
 
                 {/* Display Comments */}
-                <div className="mt-20">
-                    <h3 className="text-xl font-semibold leading-none tracking-[-0.24px] mb-8 md:mb-12 md:text-2xl">
-                        Comments
-                    </h3>
-                    <div className="grid grid-cols-1 gap-6">
-                        {filteredComments.map((comment) => (
-                            <div
-                                key={comment.slug}
-                                className="p-6 border border-appGray-200 rounded-lg"
-                            >
-                                <h4 className="text-lg font-semibold">
-                                    {comment.title}
-                                </h4>
-                                <p className="text-sm text-appGray-500">
-                                    From: {comment.from}
-                                </p>
-                                <p className="mt-2">{comment.comment_text}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <CommentsList slug={params.slug} />
 
-                
                 {/* Comment Form */}
                 <CommentForm
                     blogEntryId={blog._id}
